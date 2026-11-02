@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RDX EAMIN Admin</title><link rel="stylesheet" href="style.css"></head>
+<body><main class="section" style="max-width:1000px;margin:auto"><div class="section-head"><h2>RDX EAMIN Admin</h2><span>Order Manager</span></div>
+<div id="login"><p>Admin PIN দিন</p><input id="pin" type="password" placeholder="PIN"><button class="submit" onclick="login()">Login</button><small>নোট: এটি browser-only demo panel; real secure admin/database নয়।</small></div>
+<div id="panel" hidden><div class="paybox"><b>অর্ডার</b><button type="button" id="clear" onclick="clearOrders()">সব মুছুন</button></div><div id="orders"></div></div></main>
+<script>
+function login(){if(document.getElementById('pin').value==='7860'){document.getElementById('login').hidden=true;document.getElementById('panel').hidden=false;render()}else alert('ভুল PIN');}
+function render(){const o=JSON.parse(localStorage.getItem('rdxOrders')||'[]');const box=document.getElementById('orders');if(!o.length){box.innerHTML='<p>কোনো order নেই।</p>';return}box.innerHTML=o.map((x,i)=>`<div class="paybox" style="margin-top:12px"><b>${x.id}</b><p>${x.service} • ${x.package}<br>UID: ${x.uid}<br>Payment: ${x.payment} • TRX: ${x.trx}<br>Customer: ${x.customer}</p><select onchange="status(${i},this.value)"><option ${x.status==='Pending'?'selected':''}>Pending</option><option ${x.status==='Processing'?'selected':''}>Processing</option><option ${x.status==='Completed'?'selected':''}>Completed</option><option ${x.status==='Cancelled'?'selected':''}>Cancelled</option></select></div>`).join('')}
+function status(i,v){const o=JSON.parse(localStorage.getItem('rdxOrders')||'[]');o[i].status=v;localStorage.setItem('rdxOrders',JSON.stringify(o));render()}
+function clearOrders(){if(confirm('সব order মুছে ফেলবেন?')){localStorage.removeItem('rdxOrders');render()}}
+</script></body></html>
