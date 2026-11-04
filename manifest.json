@@ -1,0 +1,14 @@
+{
+  "name": "EAMIN TOP-UP",
+  "short_name": "EAMIN TOP-UP",
+  "description": "Free Fire Diamond, Membership and Level Up Pass top-up in Bangladesh",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8fd",
+  "theme_color": "#1769d2",
+  "icons": [
+    {"src": "Main%20logo.jpg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any"},
+    {"src": "Main%20logo.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any"}
+  ]
+}
