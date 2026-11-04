@@ -83,7 +83,7 @@ function extractPlayerName(data){
 }
 async function lookupFreeFireUID(){
  const uid=$('uid').value.trim(),status=$('uidStatus'),player=$('player');
- if(!/^\\d{5,15}$/.test(uid)){status.textContent='৫–১৫ সংখ্যার সঠিক UID লিখুন।';player.value='';lastLookupUid='';return}
+ if(!/^\d{5,15}$/.test(uid)){status.textContent='৫–১৫ সংখ্যার সঠিক UID লিখুন।';player.value='';lastLookupUid='';return}
  if(lastLookupUid===uid)return;
  if(uidLookupController)uidLookupController.abort();
  uidLookupController=new AbortController();
@@ -112,8 +112,8 @@ $('uid').addEventListener('input',()=>{
  if(uidLookupController)uidLookupController.abort();
  const uid=$('uid').value.trim();
  $('player').value='';
- $('uidStatus').textContent=/^\\d{5,15}$/.test(uid)?'UID যাচাই করা হচ্ছে...':'৫–১৫ সংখ্যার UID লিখুন।';
- if(/^\\d{5,15}$/.test(uid))uidLookupTimer=setTimeout(lookupFreeFireUID,650);
+ $('uidStatus').textContent=/^\d{5,15}$/.test(uid)?'UID যাচাই করা হচ্ছে...':'৫–১৫ সংখ্যার UID লিখুন।';
+ if(/^\d{5,15}$/.test(uid))uidLookupTimer=setTimeout(lookupFreeFireUID,650);
 });
 
 async function renderWallet(){if(!currentUser){$('wallet').textContent='0';return}const {data,error}=await sb.from('wallet_ledger').select('amount_bdt,entry_type').eq('user_id',currentUser.id);if(error){$('wallet').textContent='—';return}const total=(data||[]).reduce((s,x)=>s+(x.entry_type==='debit'?-1:Number(x.amount_bdt)),0);$('wallet').textContent=total.toLocaleString('en-US',{maximumFractionDigits:2})}
