@@ -30,7 +30,7 @@
 ## অ্যাডমিন প্যানেল চালু (নতুন)
 
 1. Supabase → SQL Editor → New query খুলুন।
-2. GitHub-এর `supabase/admin-functions.sql` ফাইলের সম্পূর্ণ SQL পেস্ট করে Run করুন। এটি Add Money approve করলে একই transaction-এ wallet ledger-এ টাকা যোগ করবে; একই request দ্বিতীয়বার credit হবে না।
+2. নিচে দেওয়া নতুন `supabase/guest-orders.sql` migration চালালে Guest table এবং Registered wallet approval function—দুটিই তৈরি হবে। পুরোনো `admin-functions.sql` আলাদা করে চালানোর দরকার নেই।
 3. Authentication → Users থেকে নিজের অ্যাকাউন্টের ইমেইল নিশ্চিত করুন।
 4. SQL Editor-এ নিচের কমান্ড চালিয়ে নিজের ইমেইল বসিয়ে role admin করুন:
 
