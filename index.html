@@ -73,16 +73,29 @@ function copyPayment(){const v=nums[$('payment').value];if(v)copyText(v);else to
 $('payment').addEventListener('change',()=>{$('payNumber').textContent=nums[$('payment').value]||'মাধ্যম নির্বাচন করুন'});
 let uidLookupTimer=null,uidLookupController=null,lastLookupUid='';
 function extractPlayerName(data){
- const candidates=[
-  data?.nickname,data?.username,data?.player?.nickname,data?.player?.name,
+ const direct=[
+  data?.nickname,data?.username,data?.name,
+  data?.AccountInfo?.AccountName,data?.accountInfo?.accountName,
   data?.basicInfo?.nickname,data?.basic_info?.nickname,
   data?.playerInfo?.nickname,data?.player_info?.nickname,
-  data?.AccountInfo?.AccountName,data?.accountInfo?.accountName,
-  data?.data?.nickname,data?.data?.username,
+  data?.player?.nickname,data?.player?.name,
+  data?.data?.nickname,data?.data?.username,data?.data?.name,
+  data?.data?.AccountInfo?.AccountName,
   data?.data?.basicInfo?.nickname,data?.data?.basic_info?.nickname,
-  data?.data?.AccountInfo?.AccountName,data?.result?.nickname
+  data?.result?.nickname,data?.result?.AccountInfo?.AccountName
  ];
- return candidates.find(v=>typeof v==='string'&&v.trim())?.trim()||'';
+ const found=direct.find(v=>typeof v==='string'&&v.trim());
+ if(found)return found.trim();
+ // Some API versions wrap the profile at a different nesting level.
+ const scan=(obj,depth=0)=>{
+  if(!obj||typeof obj!=='object'||depth>5)return '';
+  for(const [key,value] of Object.entries(obj)){
+   if(['nickname','accountname','username'].includes(key.toLowerCase())&&typeof value==='string'&&value.trim())return value.trim();
+  }
+  for(const value of Object.values(obj)){const hit=scan(value,depth+1);if(hit)return hit}
+  return '';
+ };
+ return scan(data);
 }
 async function lookupFreeFireUID(){
  const uid=$('uid').value.trim(),status=$('uidStatus'),player=$('player');
@@ -90,36 +103,32 @@ async function lookupFreeFireUID(){
  if(lastLookupUid===uid)return;
  if(uidLookupController)uidLookupController.abort();
  const controller=new AbortController();uidLookupController=controller;
- const timeout=setTimeout(()=>controller.abort(),2600);
- status.textContent='⏳ ২–৩ সেকেন্ডের মধ্যে গেমের নাম খোঁজা হচ্ছে...';
+ const timeout=setTimeout(()=>controller.abort(),8000);
+ status.textContent='⏳ Player Name খোঁজা হচ্ছে... সাধারণত ২–৩ সেকেন্ড লাগতে পারে।';
  player.value='';
  try{
-  // Fast nickname endpoint; fallback to the full profile endpoint if needed.
-  let data=null;
   const urls=[
    'https://api2.nftoken.info/checkbanned?id='+encodeURIComponent(uid),
+   'https://api2.nftoken.info/player-info?uid='+encodeURIComponent(uid),
    'https://api2.nftoken.info/get?uid='+encodeURIComponent(uid)+'&region=BD'
   ];
+  let name='';
   for(const url of urls){
    try{
     const response=await fetch(url,{method:'GET',headers:{Accept:'application/json'},signal:controller.signal,cache:'no-store'});
     if(!response.ok)continue;
     const result=await response.json();
-    const name=extractPlayerName(result);
-    if(name){data=name;break}
+    name=extractPlayerName(result);
+    if(name)break;
    }catch(err){if(err.name==='AbortError')throw err}
   }
-  if(!data)throw new Error('not_found');
+  if(!name)throw new Error('not_found');
   if($('uid').value.trim()!==uid)return;
-  player.value=data;lastLookupUid=uid;
-  status.textContent='✓ Player Name পাওয়া গেছে: '+data;
+  player.value=name;lastLookupUid=uid;
+  status.textContent='✓ Player Name পাওয়া গেছে: '+name;
  }catch(error){
-  if(error.name==='AbortError'&&controller.signal.aborted){
-   if($('uid').value.trim()===uid)status.textContent='২–৩ সেকেন্ডে সার্ভার থেকে উত্তর আসেনি। আবার চেষ্টা করুন।';
-   return;
-  }
   if($('uid').value.trim()!==uid)return;
-  status.textContent='নাম পাওয়া যায়নি। UID ঠিক আছে কি না দেখুন, কিছুক্ষণ পর আবার চেষ্টা করুন।';
+  status.textContent=error.name==='AbortError'?'সার্ভার উত্তর দিতে দেরি করছে। একটু পর আবার UID দিন।':'নাম পাওয়া যায়নি। UID বা সার্ভার যাচাই করে আবার চেষ্টা করুন।';
   player.value='';
  }finally{clearTimeout(timeout)}
 }
