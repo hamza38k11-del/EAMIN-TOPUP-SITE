@@ -43,3 +43,22 @@ where id = (select id from auth.users where email = 'YOUR-LOGIN-EMAIL');
 5. ওয়েবসাইটের শেষে `/admin.html` যোগ করে Admin প্যানেলে লগইন করুন।
 
 **সতর্কতা:** bKash/Nagad অ্যাপে টাকা সত্যিই এসেছে কি না মিলিয়ে তারপরই Approve করবেন। Transaction ID একা পেমেন্টের প্রমাণ নয়।
+
+
+## Guest Order ও Guest Add Money Admin-এ দেখাতে (নতুন)
+
+1. Supabase Dashboard → SQL Editor → New query খুলুন।
+2. GitHub-এর `supabase/guest-orders.sql` ফাইলের সম্পূর্ণ SQL কপি করে Run করুন। এটি Guest order এবং Guest Add Money-এর জন্য আলাদা টেবিল ও RLS নিরাপত্তা তৈরি করবে।
+3. Authentication → Users-এ আপনার Admin ইমেইল দিয়ে Email/Password user তৈরি করুন (ইমেইল নিশ্চিত করুন)।
+4. SQL Editor-এ নিচের SQL চালান (আপনার Admin ইমেইলটি বসান):
+
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'nehalmozumdee@gmail.com');
+```
+
+5. Admin প্যানেল খুলুন: https://hamza38k11-del.github.io/EAMIN-TOPUP-SITE/admin.html
+6. ঐ Admin email ও password দিয়ে লগইন করুন। এরপর Refresh চাপলে Guest ও Registered order/request দেখা যাবে।
+
+**মনে রাখবেন:** Guest Add Money অনুমোদন করলে শুধু request-এর status বদলাবে; Guest-এর wallet balance স্বয়ংক্রিয়ভাবে বাড়বে না। bKash/Nagad-এ টাকা হাতে যাচাই করে তারপর status পরিবর্তন করবেন। SQL migration Run না করা পর্যন্ত Guest checkout database-এ জমা হবে না।
