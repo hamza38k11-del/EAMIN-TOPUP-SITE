@@ -203,6 +203,7 @@ async function refreshAuth(){
    if(p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
   }
   await renderWallet();
+  await renderHomeRecentOrders();
  }catch(e){
   console.error('Auth refresh failed:',e);
   toast('লগইন যাচাই করা যায়নি। আবার চেষ্টা করুন।');
