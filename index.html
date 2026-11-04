@@ -49,7 +49,7 @@
 const SUPABASE_URL="https://jaldowgrjugtessgcgnf.supabase.co";
 const SUPABASE_KEY="sb_publishable_6FLmBjyIb-Fyb8w0sQ7lWw_jMRdkLPA";
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
- auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,flowType:'pkce',storage:window.localStorage}
+ auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,flowType:'implicit',storage:window.localStorage}
 });
 let currentUser=null;
 const nums={'bKash Personal':'01768483444','Nagad Personal':'01626635977'};
