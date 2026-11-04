@@ -103,14 +103,15 @@ async function lookupFreeFireUID(){
  if(lastLookupUid===uid)return;
  if(uidLookupController)uidLookupController.abort();
  const controller=new AbortController();uidLookupController=controller;
- const timeout=setTimeout(()=>controller.abort(),8000);
- status.textContent='⏳ Player Name খোঁজা হচ্ছে... সাধারণত ২–৩ সেকেন্ড লাগতে পারে।';
+ const timeout=setTimeout(()=>controller.abort(),6500);
+ status.textContent='⏳ Bangladesh Server থেকে Player Name খোঁজা হচ্ছে...';
  player.value='';
  try{
   const urls=[
+   // Bangladesh region is known, so try the region-specific endpoint first.
+   'https://api2.nftoken.info/get?uid='+encodeURIComponent(uid)+'&region=BD',
    'https://api2.nftoken.info/checkbanned?id='+encodeURIComponent(uid),
-   'https://api2.nftoken.info/player-info?uid='+encodeURIComponent(uid),
-   'https://api2.nftoken.info/get?uid='+encodeURIComponent(uid)+'&region=BD'
+   'https://api2.nftoken.info/player-info?uid='+encodeURIComponent(uid)
   ];
   let name='';
   for(const url of urls){
@@ -128,7 +129,7 @@ async function lookupFreeFireUID(){
   status.textContent='✓ Player Name পাওয়া গেছে: '+name;
  }catch(error){
   if($('uid').value.trim()!==uid)return;
-  status.textContent=error.name==='AbortError'?'সার্ভার উত্তর দিতে দেরি করছে। একটু পর আবার UID দিন।':'নাম পাওয়া যায়নি। UID বা সার্ভার যাচাই করে আবার চেষ্টা করুন।';
+  status.textContent=error.name==='AbortError'?'গেমের সার্ভার সময়মতো উত্তর দেয়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।':'নাম পাওয়া যায়নি। UID বা সার্ভার যাচাই করে আবার চেষ্টা করুন।';
   player.value='';
  }finally{clearTimeout(timeout)}
 }
