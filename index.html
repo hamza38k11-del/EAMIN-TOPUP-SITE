@@ -129,7 +129,7 @@ function extractPlayerName(data){
 }
 async function lookupFreeFireUID(){
  const uid=$('uid').value.trim(),status=$('uidStatus'),player=$('player');
- if(!/^\d{5,15}$/.test(uid)){status.textContent='৫–১৫ সংখ্যার সঠিক UID লিখুন।';player.value='';lastLookupUid='';return}
+ if(!/^\\d{5,15}$/.test(uid)){status.textContent='৫–১৫ সংখ্যার সঠিক UID লিখুন।';player.value='';lastLookupUid='';return}
  if(lastLookupUid===uid)return;
  if(uidLookupController)uidLookupController.abort();
  const controller=new AbortController();uidLookupController=controller;
