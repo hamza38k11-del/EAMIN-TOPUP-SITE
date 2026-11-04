@@ -80,28 +80,40 @@ async function loginWithGoogle(){const {error}=await sb.auth.signInWithOAuth({pr
 async function signOut(){await sb.auth.signOut();toast('লগআউট হয়েছে')}
 async function saveProfile(){if(!currentUser)return toast('আগে লগইন করুন');const {error}=await sb.from('profiles').update({full_name:$('profileName').value.trim(),phone:$('profilePhone').value.trim()}).eq('id',currentUser.id);if(error)return toast('তথ্য সেভ হয়নি: '+error.message);toast('প্রোফাইল সেভ হয়েছে')}
 let authReady=false;
-async function refreshAuth(session=null){
- const result=session?{data:{session}}:await sb.auth.getSession();
- currentUser=result.data?.session?.user||null;
- authReady=true;
- $('authBox').hidden=!!currentUser;
- $('profileBox').hidden=!currentUser;
- if(currentUser){
-  $('signedInAs').textContent='লগইন: '+currentUser.email;
-  const {data:p}=await sb.from('profiles').select('full_name,phone').eq('id',currentUser.id).maybeSingle();
-  if(p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
+let authRefreshRunning=false,authRefreshQueued=false;
+async function refreshAuth(){
+ if(authRefreshRunning){authRefreshQueued=true;return}
+ authRefreshRunning=true;
+ try{
+  // Always read the latest persisted session; never trust a possibly stale INITIAL_SESSION payload.
+  const {data,error}=await sb.auth.getSession();
+  if(error)throw error;
+  currentUser=data?.session?.user||null;
+  authReady=true;
+  $('authBox').hidden=!!currentUser;
+  $('profileBox').hidden=!currentUser;
+  if(currentUser){
+   $('signedInAs').textContent='লগইন: '+currentUser.email;
+   const {data:p}=await sb.from('profiles').select('full_name,phone').eq('id',currentUser.id).maybeSingle();
+   if(p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
+  }
+  await renderWallet();
+ }catch(e){
+  console.error('Auth refresh failed:',e);
+  toast('লগইন যাচাই করা যায়নি। আবার চেষ্টা করুন।');
+ }finally{
+  authRefreshRunning=false;
+  if(authRefreshQueued){authRefreshQueued=false;setTimeout(refreshAuth,0)}
  }
- await renderWallet();
 }
-sb.auth.onAuthStateChange((event,session)=>{
- // Supabase auth callbacks must stay synchronous; defer database work until callback returns.
- if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION'){
-  setTimeout(()=>refreshAuth(session),0);
- }
- if(event==='SIGNED_OUT'){
-  setTimeout(()=>refreshAuth(null),0);
+sb.auth.onAuthStateChange((event)=>{
+ // Re-read the current session after Supabase finishes its internal auth callback.
+ if(['SIGNED_IN','TOKEN_REFRESHED','INITIAL_SESSION','SIGNED_OUT','USER_UPDATED'].includes(event)){
+  setTimeout(refreshAuth,0);
  }
 });
 refreshAuth();
+window.addEventListener('focus',()=>setTimeout(refreshAuth,150));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(refreshAuth,150)});
 $('year').textContent=new Date().getFullYear();renderPackages();
 </script></body></html>
