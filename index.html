@@ -74,10 +74,13 @@ $('payment').addEventListener('change',()=>{$('payNumber').textContent=nums[$('p
 let uidLookupTimer=null,uidLookupController=null,lastLookupUid='';
 function extractPlayerName(data){
  const candidates=[
-  data?.basicInfo?.nickname,data?.basic_info?.nickname,data?.playerInfo?.nickname,
-  data?.player_info?.nickname,data?.nickname,data?.username,data?.player?.nickname,
+  data?.nickname,data?.username,data?.player?.nickname,data?.player?.name,
+  data?.basicInfo?.nickname,data?.basic_info?.nickname,
+  data?.playerInfo?.nickname,data?.player_info?.nickname,
+  data?.AccountInfo?.AccountName,data?.accountInfo?.accountName,
+  data?.data?.nickname,data?.data?.username,
   data?.data?.basicInfo?.nickname,data?.data?.basic_info?.nickname,
-  data?.data?.nickname,data?.data?.username
+  data?.data?.AccountInfo?.AccountName,data?.result?.nickname
  ];
  return candidates.find(v=>typeof v==='string'&&v.trim())?.trim()||'';
 }
@@ -86,34 +89,46 @@ async function lookupFreeFireUID(){
  if(!/^\d{5,15}$/.test(uid)){status.textContent='৫–১৫ সংখ্যার সঠিক UID লিখুন।';player.value='';lastLookupUid='';return}
  if(lastLookupUid===uid)return;
  if(uidLookupController)uidLookupController.abort();
- uidLookupController=new AbortController();
- status.textContent='⏳ গেমের নাম খোঁজা হচ্ছে...';
+ const controller=new AbortController();uidLookupController=controller;
+ const timeout=setTimeout(()=>controller.abort(),2600);
+ status.textContent='⏳ ২–৩ সেকেন্ডের মধ্যে গেমের নাম খোঁজা হচ্ছে...';
  player.value='';
  try{
-  const url='https://api2.nftoken.info/get?uid='+encodeURIComponent(uid)+'&region=BD';
-  const response=await fetch(url,{method:'GET',headers:{Accept:'application/json'},signal:uidLookupController.signal});
-  if(!response.ok)throw new Error('lookup_failed');
-  const data=await response.json();
-  const name=extractPlayerName(data);
-  if(!name)throw new Error('not_found');
+  // Fast nickname endpoint; fallback to the full profile endpoint if needed.
+  let data=null;
+  const urls=[
+   'https://api2.nftoken.info/checkbanned?id='+encodeURIComponent(uid),
+   'https://api2.nftoken.info/get?uid='+encodeURIComponent(uid)+'&region=BD'
+  ];
+  for(const url of urls){
+   try{
+    const response=await fetch(url,{method:'GET',headers:{Accept:'application/json'},signal:controller.signal,cache:'no-store'});
+    if(!response.ok)continue;
+    const result=await response.json();
+    const name=extractPlayerName(result);
+    if(name){data=name;break}
+   }catch(err){if(err.name==='AbortError')throw err}
+  }
+  if(!data)throw new Error('not_found');
   if($('uid').value.trim()!==uid)return;
-  player.value=name;lastLookupUid=uid;
-  status.textContent='✓ Player Name পাওয়া গেছে: '+name;
+  player.value=data;lastLookupUid=uid;
+  status.textContent='✓ Player Name পাওয়া গেছে: '+data;
  }catch(error){
-  if(error.name==='AbortError')return;
+  if(error.name==='AbortError'&&controller.signal.aborted){
+   if($('uid').value.trim()===uid)status.textContent='২–৩ সেকেন্ডে সার্ভার থেকে উত্তর আসেনি। আবার চেষ্টা করুন।';
+   return;
+  }
   if($('uid').value.trim()!==uid)return;
   status.textContent='নাম পাওয়া যায়নি। UID ঠিক আছে কি না দেখুন, কিছুক্ষণ পর আবার চেষ্টা করুন।';
   player.value='';
- }
+ }finally{clearTimeout(timeout)}
 }
 $('uid').addEventListener('input',()=>{
- clearTimeout(uidLookupTimer);
- lastLookupUid='';
+ clearTimeout(uidLookupTimer);lastLookupUid='';
  if(uidLookupController)uidLookupController.abort();
- const uid=$('uid').value.trim();
- $('player').value='';
+ const uid=$('uid').value.trim();$('player').value='';
  $('uidStatus').textContent=/^\d{5,15}$/.test(uid)?'UID যাচাই করা হচ্ছে...':'৫–১৫ সংখ্যার UID লিখুন।';
- if(/^\d{5,15}$/.test(uid))uidLookupTimer=setTimeout(lookupFreeFireUID,650);
+ if(/^\d{5,15}$/.test(uid))uidLookupTimer=setTimeout(lookupFreeFireUID,250);
 });
 
 async function renderWallet(){if(!currentUser){$('wallet').textContent='0';return}const {data,error}=await sb.from('wallet_ledger').select('amount_bdt,entry_type').eq('user_id',currentUser.id);if(error){$('wallet').textContent='—';return}const total=(data||[]).reduce((s,x)=>s+(x.entry_type==='debit'?-1:Number(x.amount_bdt)),0);$('wallet').textContent=total.toLocaleString('en-US',{maximumFractionDigits:2})}
