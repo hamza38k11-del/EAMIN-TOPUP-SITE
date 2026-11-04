@@ -94,8 +94,13 @@ async function refreshAuth(session=null){
  await renderWallet();
 }
 sb.auth.onAuthStateChange((event,session)=>{
- if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION') refreshAuth(session);
- if(event==='SIGNED_OUT') refreshAuth(null);
+ // Supabase auth callbacks must stay synchronous; defer database work until callback returns.
+ if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION'){
+  setTimeout(()=>refreshAuth(session),0);
+ }
+ if(event==='SIGNED_OUT'){
+  setTimeout(()=>refreshAuth(null),0);
+ }
 });
 refreshAuth();
 $('year').textContent=new Date().getFullYear();renderPackages();
