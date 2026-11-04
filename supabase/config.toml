@@ -1,0 +1,2 @@
+[functions.freefire-player]
+verify_jwt = false
