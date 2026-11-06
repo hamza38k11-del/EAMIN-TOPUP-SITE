@@ -204,38 +204,9 @@ async function loginWithGoogle(){const {error}=await sb.auth.signInWithOAuth({pr
 async function signOut(){await sb.auth.signOut();toast('লগআউট হয়েছে')}
 async function saveProfile(){if(!currentUser)return toast('আগে লগইন করুন');const {error}=await sb.from('profiles').update({full_name:$('profileName').value.trim(),phone:$('profilePhone').value.trim()}).eq('id',currentUser.id);if(error)return toast('তথ্য সেভ হয়নি: '+error.message);toast('প্রোফাইল সেভ হয়েছে')}
 let authReady=false;
-let authRefreshRunning=false,authRefreshQueued=false;
-async function refreshAuth(){
- if(authRefreshRunning){authRefreshQueued=true;return}
- authRefreshRunning=true;
- try{
-  // Always read the latest persisted session; never trust a possibly stale INITIAL_SESSION payload.
-  const {data,error}=await sb.auth.getSession();
-  if(error)throw error;
-  currentUser=data?.session?.user||null;
-  authReady=true;
-  $('authBox').hidden=!!currentUser;
-  $('profileBox').hidden=!currentUser;
-  if(currentUser){
-   $('signedInAs').textContent='লগইন: '+currentUser.email;
-   const {data:p}=await sb.from('profiles').select('full_name,phone').eq('id',currentUser.id).maybeSingle();
-   if(p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
-  }
-  await renderWallet();
-  await renderHomeRecentOrders();
- }catch(e){
-  console.error('Auth refresh failed:',e);
-  toast('লগইন যাচাই করা যায়নি। আবার চেষ্টা করুন।');
- }finally{
-  authRefreshRunning=false;
-  if(authRefreshQueued){authRefreshQueued=false;setTimeout(refreshAuth,0)}
- }
-}
-sb.auth.onAuthStateChange((event,session)=>{
- if(event==='PASSWORD_RECOVERY'){$('recoveryScreen').hidden=false;return}
- if(!['SIGNED_IN','TOKEN_REFRESHED','INITIAL_SESSION','SIGNED_OUT','USER_UPDATED'].includes(event))return;
- // Read the session supplied by Supabase's event directly, rather than racing
- // a separate getSession() call while an OAuth redirect is being finalized.
+let authRevision=0;
+function applyAuthSession(session){
+ const revision=++authRevision;
  currentUser=session?.user||null;
  authReady=true;
  $('authBox').hidden=!!currentUser;
@@ -243,22 +214,49 @@ sb.auth.onAuthStateChange((event,session)=>{
  if(currentUser){
   const userId=currentUser.id;
   $('signedInAs').textContent='লগইন: '+(currentUser.email||'Google account');
+  $('profileName').value='';
+  $('profilePhone').value='';
+  // Keep the auth event handler synchronous; load profile data after it returns.
   setTimeout(async()=>{
    try{
-    const {data:p}=await sb.from('profiles').select('full_name,phone').eq('id',userId).maybeSingle();
-    if(currentUser?.id===userId&&p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
-    if(currentUser?.id===userId){await renderWallet();await renderHomeRecentOrders()}
+    const {data:p,error}=await sb.from('profiles').select('full_name,phone').eq('id',userId).maybeSingle();
+    if(error)console.warn('Profile load failed:',error.message);
+    if(authRevision===revision&&currentUser?.id===userId&&p){
+     $('profileName').value=p.full_name||'';
+     $('profilePhone').value=p.phone||'';
+    }
+    if(authRevision===revision&&currentUser?.id===userId){
+     await renderWallet();
+     await renderHomeRecentOrders();
+    }
    }catch(e){console.error('Profile refresh failed:',e)}
   },0);
  }else{
   $('signedInAs').textContent='';
   $('profileName').value='';
   $('profilePhone').value='';
-  setTimeout(()=>{renderWallet();renderHomeRecentOrders()},0);
+  setTimeout(()=>{if(authRevision===revision&&!currentUser){renderWallet();renderHomeRecentOrders()}},0);
+ }
+}
+sb.auth.onAuthStateChange((event,session)=>{
+ if(event==='PASSWORD_RECOVERY'){$('recoveryScreen').hidden=false;return}
+ if(['SIGNED_IN','TOKEN_REFRESHED','INITIAL_SESSION','SIGNED_OUT','USER_UPDATED'].includes(event)){
+  applyAuthSession(session);
  }
 });
-window.addEventListener('focus',()=>setTimeout(refreshAuth,150));
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(refreshAuth,150)});
+// Restore a saved Google session on every page load. If an auth event arrives
+// while this request is running, its newer session always wins.
+(async()=>{
+ const revision=authRevision;
+ try{
+  const {data,error}=await sb.auth.getSession();
+  if(error)throw error;
+  if(authRevision===revision)applyAuthSession(data?.session||null);
+ }catch(e){
+  console.error('Initial auth restore failed:',e);
+  if(authRevision===revision)toast('লগইন অবস্থা যাচাই করা যায়নি। পেজটি আবার খুলুন।');
+ }
+})();
 $('year').textContent=new Date().getFullYear();renderPackages();loadProductCatalog();renderHomeRecentOrders();
 let installPromptEvent=null;const installStrip=$('installStrip');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPromptEvent=event;installStrip.classList.add('show')});$('installButton').addEventListener('click',async()=>{if(!installPromptEvent){toast('Browser menu থেকে Add to Home Screen নির্বাচন করুন');return}installPromptEvent.prompt();await installPromptEvent.userChoice;installPromptEvent=null;installStrip.classList.remove('show')});window.addEventListener('appinstalled',()=>{installStrip.classList.remove('show');toast('EAMIN TOP-UP App ইনস্টল হয়েছে')});if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(err=>console.log('App cache unavailable',err));
 </script></body></html>
