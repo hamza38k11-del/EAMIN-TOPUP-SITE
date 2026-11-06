@@ -231,13 +231,32 @@ async function refreshAuth(){
   if(authRefreshQueued){authRefreshQueued=false;setTimeout(refreshAuth,0)}
  }
 }
-sb.auth.onAuthStateChange((event)=>{
- // Re-read the current session after Supabase finishes its internal auth callback.
- if(['SIGNED_IN','TOKEN_REFRESHED','INITIAL_SESSION','SIGNED_OUT','USER_UPDATED'].includes(event)){
-  setTimeout(refreshAuth,0);
+sb.auth.onAuthStateChange((event,session)=>{
+ if(event==='PASSWORD_RECOVERY'){$('recoveryScreen').hidden=false;return}
+ if(!['SIGNED_IN','TOKEN_REFRESHED','INITIAL_SESSION','SIGNED_OUT','USER_UPDATED'].includes(event))return;
+ // Read the session supplied by Supabase's event directly, rather than racing
+ // a separate getSession() call while an OAuth redirect is being finalized.
+ currentUser=session?.user||null;
+ authReady=true;
+ $('authBox').hidden=!!currentUser;
+ $('profileBox').hidden=!currentUser;
+ if(currentUser){
+  const userId=currentUser.id;
+  $('signedInAs').textContent='লগইন: '+(currentUser.email||'Google account');
+  setTimeout(async()=>{
+   try{
+    const {data:p}=await sb.from('profiles').select('full_name,phone').eq('id',userId).maybeSingle();
+    if(currentUser?.id===userId&&p){$('profileName').value=p.full_name||'';$('profilePhone').value=p.phone||''}
+    if(currentUser?.id===userId){await renderWallet();await renderHomeRecentOrders()}
+   }catch(e){console.error('Profile refresh failed:',e)}
+  },0);
+ }else{
+  $('signedInAs').textContent='';
+  $('profileName').value='';
+  $('profilePhone').value='';
+  setTimeout(()=>{renderWallet();renderHomeRecentOrders()},0);
  }
 });
-refreshAuth();
 window.addEventListener('focus',()=>setTimeout(refreshAuth,150));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(refreshAuth,150)});
 $('year').textContent=new Date().getFullYear();renderPackages();loadProductCatalog();renderHomeRecentOrders();
