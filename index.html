@@ -90,7 +90,25 @@ $('recoveryForm').addEventListener('submit',async e=>{e.preventDefault();const p
 const nums={'bKash Personal':'01768483444','Nagad Personal':'01626635977'};
 const $=id=>document.getElementById(id);
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2200)}
-async function refreshAccountAuth(){const revision=authRevision;try{const {data,error}=await sb.auth.getSession();if(error)throw error;if(authRevision===revision)applyAuthSession(data?.session||null)}catch(e){console.error('Account session check failed:',e);toast('Google লগইন অবস্থা যাচাই করা যায়নি। আবার চেষ্টা করুন।')}}
+async function restoreAuthSession(showError=false){
+ try{
+  const {data,error}=await sb.auth.getSession();
+  if(error)throw error;
+  if(data?.session){
+   if(!currentUser||currentUser.id!==data.session.user.id)applyAuthSession(data.session);
+  }else if(!currentUser)applyAuthSession(null);
+  return data?.session||null;
+ }catch(e){
+  console.error('Auth session restore failed:',e);
+  if(showError)toast('লগইন অবস্থা যাচাই করা যায়নি। ইন্টারনেট চালু রেখে আবার চেষ্টা করুন।');
+  return null;
+ }
+}
+async function refreshAccountAuth(){await restoreAuthSession(true)}
+// Restore the saved Google session when the browser returns to this site.
+window.addEventListener('pageshow',()=>{if(!currentUser)restoreAuthSession(false)});
+window.addEventListener('focus',()=>{if(!currentUser)restoreAuthSession(false)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!currentUser)restoreAuthSession(false)});
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===id));if(id==='orders')renderOrders();if(id==='codes')renderCodes();if(id==='addmoney')renderAddMoneyHistory();if(id==='home')renderHomeRecentOrders();if(id==='account')refreshAccountAuth();window.scrollTo({top:0,behavior:'smooth'})}
 let diamondPackages=[['20 Diamond',20],['50 Diamond',35],['115 Diamond',77],['240 Diamond',153],['355 Diamond',230],['480 Diamond',305],['505 Diamond',325],['610 Diamond',385],['850 Diamond',540],['1090 Diamond',685],['1240 Diamond',765],['2530 Diamond',1540],['5060 Diamond',3080],['10120 Diamond',6160]];
 let membershipPackages=[['1x Weekly 🔰',153],['2x Weekly 🔰',305],['3x Weekly 🔰',460],['4x Weekly 🔰',610],['5x Weekly 🔰',765],['6x Weekly 🔰',920],['1x Monthly 🔰',750],['2x Monthly 🔰',1500],['3x Monthly 🔰',2250],['4x Monthly 🔰',3000],['5x Monthly 🔰',3750],['6x Monthly 🔰',4500]];
@@ -247,17 +265,7 @@ sb.auth.onAuthStateChange((event,session)=>{
 });
 // Restore a saved Google session on every page load. If an auth event arrives
 // while this request is running, its newer session always wins.
-(async()=>{
- const revision=authRevision;
- try{
-  const {data,error}=await sb.auth.getSession();
-  if(error)throw error;
-  if(authRevision===revision)applyAuthSession(data?.session||null);
- }catch(e){
-  console.error('Initial auth restore failed:',e);
-  if(authRevision===revision)toast('লগইন অবস্থা যাচাই করা যায়নি। পেজটি আবার খুলুন।');
- }
-})();
+(async()=>{await restoreAuthSession(true)})();
 $('year').textContent=new Date().getFullYear();renderPackages();loadProductCatalog();renderHomeRecentOrders();
 let installPromptEvent=null;const installStrip=$('installStrip');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPromptEvent=event;installStrip.classList.add('show')});$('installButton').addEventListener('click',async()=>{if(!installPromptEvent){toast('Browser menu থেকে Add to Home Screen নির্বাচন করুন');return}installPromptEvent.prompt();await installPromptEvent.userChoice;installPromptEvent=null;installStrip.classList.remove('show')});window.addEventListener('appinstalled',()=>{installStrip.classList.remove('show');toast('EAMIN TOP-UP App ইনস্টল হয়েছে')});if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(err=>console.log('App cache unavailable',err));
 </script></body></html>
