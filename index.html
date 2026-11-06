@@ -91,15 +91,27 @@ const nums={'bKash Personal':'01768483444','Nagad Personal':'01626635977'};
 const $=id=>document.getElementById(id);
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2200)}
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===id));if(id==='orders')renderOrders();if(id==='codes')renderCodes();if(id==='addmoney')renderAddMoneyHistory();if(id==='home')renderHomeRecentOrders();window.scrollTo({top:0,behavior:'smooth'})}
-const diamondPackages=[['20 Diamond',20],['50 Diamond',35],['115 Diamond',77],['240 Diamond',153],['355 Diamond',230],['480 Diamond',305],['505 Diamond',325],['610 Diamond',385],['850 Diamond',540],['1090 Diamond',685],['1240 Diamond',765],['2530 Diamond',1540],['5060 Diamond',3080],['10120 Diamond',6160]];
-const membershipPackages=[['1x Weekly 🔰',153],['2x Weekly 🔰',305],['3x Weekly 🔰',460],['4x Weekly 🔰',610],['5x Weekly 🔰',765],['6x Weekly 🔰',920],['1x Monthly 🔰',750],['2x Monthly 🔰',1500],['3x Monthly 🔰',2250],['4x Monthly 🔰',3000],['5x Monthly 🔰',3750],['6x Monthly 🔰',4500]];
-const levelupPackages=[['Level Up Pass - Level 6 🔰',39],['Level Up Pass - Level 10 🔰',69],['Level Up Pass - Level 15 🔰',69],['Level Up Pass - Level 20 🔰',69],['Level Up Pass - Level 25 🔰',69],['Level Up Pass - Level 30 🔰',99]];
+let diamondPackages=[['20 Diamond',20],['50 Diamond',35],['115 Diamond',77],['240 Diamond',153],['355 Diamond',230],['480 Diamond',305],['505 Diamond',325],['610 Diamond',385],['850 Diamond',540],['1090 Diamond',685],['1240 Diamond',765],['2530 Diamond',1540],['5060 Diamond',3080],['10120 Diamond',6160]];
+let membershipPackages=[['1x Weekly 🔰',153],['2x Weekly 🔰',305],['3x Weekly 🔰',460],['4x Weekly 🔰',610],['5x Weekly 🔰',765],['6x Weekly 🔰',920],['1x Monthly 🔰',750],['2x Monthly 🔰',1500],['3x Monthly 🔰',2250],['4x Monthly 🔰',3000],['5x Monthly 🔰',3750],['6x Monthly 🔰',4500]];
+let levelupPackages=[['Level Up Pass - Level 6 🔰',39],['Level Up Pass - Level 10 🔰',69],['Level Up Pass - Level 15 🔰',69],['Level Up Pass - Level 20 🔰',69],['Level Up Pass - Level 25 🔰',69],['Level Up Pass - Level 30 🔰',99]];
 let selectedPrice=0;
+function escapeProductText(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function renderPackages(){
- const makeCard=(p,service)=>{const isMember=service==='Weekly / Monthly',isLevel=service==='Level Up Pass (BD Server)';const type=p[0].includes('Monthly')?'MONTHLY MEMBERSHIP':isLevel?'LEVEL UP PASS':'WEEKLY MEMBERSHIP';const icon=isLevel?'🚀':'👑';return '<article class="product '+(isMember?'membership-product ':'')+(isLevel?'membership-product levelup-product':'')+'">'+((isMember||isLevel)?'<div class="member-top"><span class="member-symbol">'+icon+'</span><span class="member-tag">'+type+'</span></div>':'')+'<div class="prod-body"><small>'+service.toUpperCase()+'</small><h3>'+p[0]+'</h3><div class="prod-foot"><span class="price">৳ '+p[1]+'</span><button class="choose" data-service="'+service+'" data-package="'+p[0]+'" data-price="'+p[1]+'" onclick="startOrder(this.dataset.service,this.dataset.package,Number(this.dataset.price))">অর্ডার করুন</button></div></div></article>'};
+ const makeCard=(p,service)=>{const isMember=service==='Weekly / Monthly',isLevel=service==='Level Up Pass (BD Server)';const label=escapeProductText(p[0]);const type=p[0].includes('Monthly')?'MONTHLY MEMBERSHIP':isLevel?'LEVEL UP PASS':'WEEKLY MEMBERSHIP';const icon=isLevel?'🚀':'👑';return '<article class="product '+(isMember?'membership-product ':'')+(isLevel?'membership-product levelup-product':'')+'">'+((isMember||isLevel)?'<div class="member-top"><span class="member-symbol">'+icon+'</span><span class="member-tag">'+type+'</span></div>':'')+'<div class="prod-body"><small>'+service.toUpperCase()+'</small><h3>'+label+'</h3><div class="prod-foot"><span class="price">৳ '+Number(p[1]).toLocaleString('en-US')+'</span><button class="choose" data-service="'+service+'" data-package="'+label+'" data-price="'+Number(p[1])+'" onclick="startOrder(this.dataset.service,this.dataset.package,Number(this.dataset.price))">অর্ডার করুন</button></div></div></article>'};
  $('diamondPackages').innerHTML=diamondPackages.map(p=>makeCard(p,'Free Fire Diamond')).join('');
  $('levelupPackageCards').innerHTML=levelupPackages.map(p=>makeCard(p,'Level Up Pass (BD Server)')).join('');
  $('membershipPackages').innerHTML=membershipPackages.map(p=>makeCard(p,'Weekly / Monthly')).join('');
+}
+async function loadProductCatalog(){
+ const {data,error}=await sb.from('products').select('category,package_label,price_bdt,active,sort_order').eq('active',true).order('sort_order',{ascending:true});
+ if(error){console.warn('Database product catalog unavailable; using built-in catalog:',error.message);return}
+ if(!data||!data.length)return;
+ const grouped={'Free Fire Diamond':[],'Weekly / Monthly':[],'Level Up Pass (BD Server)':[]};
+ data.forEach(p=>{if(grouped[p.category])grouped[p.category].push([p.package_label,Number(p.price_bdt)])});
+ if(grouped['Free Fire Diamond'].length)diamondPackages=grouped['Free Fire Diamond'];
+ if(grouped['Weekly / Monthly'].length)membershipPackages=grouped['Weekly / Monthly'];
+ if(grouped['Level Up Pass (BD Server)'].length)levelupPackages=grouped['Level Up Pass (BD Server)'];
+ renderPackages();
 }
 function startOrder(s,pkg,price){$('service').value=s;$('levelupRules').hidden=s!=='Level Up Pass (BD Server)';$('package').innerHTML='<option value="">প্যাকেজ নির্বাচন করুন</option>';const list=s==='Free Fire Diamond'?diamondPackages:s==='Level Up Pass (BD Server)'?levelupPackages:membershipPackages;list.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[0]+' — ৳ '+p[1];o.dataset.price=p[1];$('package').appendChild(o)});$('package').value=pkg||'';selectedPrice=Number(price)||0;$('packagePrice').textContent='৳ '+selectedPrice;showPage('orderpage')}
 $('package').addEventListener('change',()=>{const o=$('package').selectedOptions[0];selectedPrice=Number(o?.dataset.price||0);$('packagePrice').textContent='৳ '+selectedPrice})
@@ -227,6 +239,6 @@ sb.auth.onAuthStateChange((event)=>{
 refreshAuth();
 window.addEventListener('focus',()=>setTimeout(refreshAuth,150));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(refreshAuth,150)});
-$('year').textContent=new Date().getFullYear();renderPackages();renderHomeRecentOrders();
+$('year').textContent=new Date().getFullYear();renderPackages();loadProductCatalog();renderHomeRecentOrders();
 let installPromptEvent=null;const installStrip=$('installStrip');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPromptEvent=event;installStrip.classList.add('show')});$('installButton').addEventListener('click',async()=>{if(!installPromptEvent){toast('Browser menu থেকে Add to Home Screen নির্বাচন করুন');return}installPromptEvent.prompt();await installPromptEvent.userChoice;installPromptEvent=null;installStrip.classList.remove('show')});window.addEventListener('appinstalled',()=>{installStrip.classList.remove('show');toast('EAMIN TOP-UP App ইনস্টল হয়েছে')});if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(err=>console.log('App cache unavailable',err));
 </script></body></html>
