@@ -1,10 +1,21 @@
 <!doctype html>
 <html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EAMIN TOP-UP Admin</title>
 <style>
-*{box-sizing:border-box}body{margin:0;padding:16px;background:#f3f7fd;color:#17345c;font-family:Arial,sans-serif}.box{max-width:1000px;margin:auto;background:#fff;padding:18px;border-radius:14px;box-shadow:0 5px 24px #17345c12}h2{margin-top:4px}input,button{font:inherit;padding:11px;margin:5px 3px;border-radius:8px}input{border:1px solid #ccd8e8;max-width:100%;width:270px}button{background:#1769d2;color:#fff;border:0;cursor:pointer}.danger{background:#c43d4b}.muted{color:#65758d;font-size:13px}.item{border:1px solid #dce5f1;padding:12px;margin:10px 0;border-radius:9px;overflow-wrap:anywhere}.section{margin-top:22px}.status{font-weight:bold;color:#1769d2}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.grid{grid-template-columns:1fr}}#msg{white-space:pre-wrap;color:#a22}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:#f3f7fd;color:#17345c;font-family:Arial,sans-serif}.box{max-width:1000px;margin:auto;background:#fff;padding:18px;border-radius:14px;box-shadow:0 5px 24px #17345c12}h2{margin-top:4px}input,button{font:inherit;padding:11px;margin:5px 3px;border-radius:8px}input{border:1px solid #ccd8e8;max-width:100%;width:270px}button{background:#1769d2;color:#fff;border:0;cursor:pointer}.danger{background:#c43d4b}.muted{color:#65758d;font-size:13px}.item{border:1px solid #dce5f1;padding:12px;margin:10px 0;border-radius:9px;overflow-wrap:anywhere}.section{margin-top:22px}.status{font-weight:bold;color:#1769d2}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.product-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.product-form input,.product-form select{width:100%;margin:0}.product-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.product-row button{margin:3px 2px}@media(max-width:600px){.product-form{grid-template-columns:1fr}.product-row{grid-template-columns:1fr}}@media(max-width:700px){.grid{grid-template-columns:1fr}}#msg{white-space:pre-wrap;color:#a22}
 </style></head><body><div class="box"><h2>🛡️ EAMIN TOP-UP Admin</h2><p class="muted">শুধু অনুমোদিত Admin অ্যাকাউন্ট দিয়ে লগইন করুন। bKash/Nagad-এ টাকা সত্যিই এসেছে কি না যাচাই করে তবেই Add Money Approve করবেন। Guest request approve করলে কোনো Wallet balance তৈরি হয় না।</p>
 <div id="login"><input id="email" type="email" placeholder="Admin email"><input id="password" type="password" placeholder="Password"><button onclick="login()">Login</button></div>
 <div id="app" hidden><p id="who"></p><button onclick="loadAll()">↻ Refresh</button><button class="danger" onclick="logout()">Logout</button>
+<section class="section"><h3>🛍️ Product Management</h3>
+<div class="item"><form id="productForm" class="product-form" onsubmit="saveProduct(event)">
+<input type="hidden" id="productId">
+<input id="productLabel" placeholder="Package name (যেমন 115 Diamond)" required>
+<select id="productCategory"><option>Free Fire Diamond</option><option>Weekly / Monthly</option><option>Level Up Pass (BD Server)</option></select>
+<input id="productPrice" type="number" min="0" step="0.01" placeholder="Price ৳" required>
+<input id="productDescription" placeholder="Description (optional)">
+<input id="productSort" type="number" placeholder="Sort order" value="0">
+<button type="submit">Save Product</button><button type="button" class="danger" onclick="resetProductForm()">Clear</button>
+</form><p class="muted">প্যাকেজের নাম ও দাম লিখে Save Product চাপুন। Edit করলে আগের প্যাকেজের তথ্য ফর্মে আসবে।</p></div>
+<div id="productsList">পণ্য লোড হচ্ছে...</div></section>
 <div class="grid"><section class="section"><h3>💳 Registered Add Money</h3><div id="wallets">লোড হচ্ছে...</div></section><section class="section"><h3>💳 Guest Add Money</h3><div id="guestWallets">লোড হচ্ছে...</div></section>
 <section class="section"><h3>📦 Registered Orders</h3><div id="orders">লোড হচ্ছে...</div></section><section class="section"><h3>📦 Guest Orders</h3><div id="guestOrders">লোড হচ্ছে...</div></section></div></div><p id="msg"></p></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
@@ -20,8 +31,21 @@ async function loadAll(){
  sb.from("orders").select("*").in("status",["pending","processing"]).order("created_at",{ascending:false}),
  sb.from("guest_orders").select("*").in("status",["pending","processing"]).order("created_at",{ascending:false})
  ]);
- renderWallets(w);renderGuestWallets(gw);renderOrders(o);renderGuestOrders(go);
+ renderWallets(w);renderGuestWallets(gw);renderOrders(o);renderGuestOrders(go);await loadProducts();
 }
+async function loadProducts(){
+ const el=$("productsList");el.textContent="পণ্য লোড হচ্ছে...";
+ const {data,error}=await sb.from("products").select("*").order("sort_order",{ascending:true}).order("created_at",{ascending:true});
+ if(error){el.textContent="পণ্য লোড হয়নি: "+error.message;return}
+ if(!data.length){el.innerHTML='<p class="muted">এখনো কোনো পণ্য নেই। নিচের ফর্ম দিয়ে প্রথম প্যাকেজ যোগ করুন।</p>';return}
+ el.innerHTML=data.map(p=>'<div class="item product-row"><div><b>'+esc(p.package_label)+'</b><br><span class="muted">'+esc(p.category)+' • ৳'+esc(p.price_bdt)+' • '+(p.active?'চালু':'বন্ধ')+'</span></div><div><button onclick="editProduct(\''+esc(p.id)+'\')">Edit</button><button onclick="toggleProduct(\''+esc(p.id)+'\','+(!p.active)+')">'+(p.active?'বন্ধ':'চালু')+'</button><button class="danger" onclick="deleteProduct(\''+esc(p.id)+'\')">Delete</button></div></div>').join("");
+ window.adminProducts=data;
+}
+function resetProductForm(){ $("productForm").reset();$("productId").value="";$("productSort").value="0"; }
+function editProduct(id){const p=(window.adminProducts||[]).find(x=>x.id===id);if(!p)return;$("productId").value=p.id;$("productLabel").value=p.package_label;$("productCategory").value=p.category;$("productPrice").value=p.price_bdt;$("productDescription").value=p.description||"";$("productSort").value=p.sort_order||0;window.scrollTo({top:0,behavior:"smooth"});}
+async function saveProduct(e){e.preventDefault();const id=$("productId").value;const payload={name:"Free Fire",category:$("productCategory").value,package_label:$("productLabel").value.trim(),price_bdt:Number($("productPrice").value),description:$("productDescription").value.trim()||null,sort_order:Number($("productSort").value)||0,active:true};if(!payload.package_label||!Number.isFinite(payload.price_bdt)||payload.price_bdt<0)return say("পণ্যের নাম ও সঠিক দাম দিন।");const q=id?sb.from("products").update(payload).eq("id",id):sb.from("products").insert(payload);const {error}=await q;if(error)return say("পণ্য সংরক্ষণ হয়নি: "+error.message);say("পণ্য সংরক্ষণ হয়েছে।");resetProductForm();await loadProducts();}
+async function toggleProduct(id,active){const {error}=await sb.from("products").update({active}).eq("id",id);if(error)return say("স্ট্যাটাস বদলানো যায়নি: "+error.message);say("পণ্যের স্ট্যাটাস বদলানো হয়েছে।");loadProducts();}
+async function deleteProduct(id){if(!confirm("এই প্যাকেজটি মুছে ফেলবেন?"))return;const {error}=await sb.from("products").delete().eq("id",id);if(error)return say("পণ্য মুছতে সমস্যা: "+error.message);say("পণ্য মুছে ফেলা হয়েছে।");loadProducts();}
 function renderWallets(r){if(r.error)return $("wallets").textContent=r.error.message;if(!r.data.length)return empty("wallets","কোনো Pending request নেই");$("wallets").innerHTML=r.data.map(x=>'<div class="item"><b>৳'+esc(x.amount_bdt)+' '+esc(x.payment_method)+'</b><br>TrxID: '+esc(x.transaction_id)+'<br>User ID: '+esc(x.user_id)+'<br><button onclick="walletAction(\''+esc(x.id)+'\',true)">Approve & Add Balance</button><button class="danger" onclick="walletAction(\''+esc(x.id)+'\',false)">Reject</button></div>').join("")}
 function renderGuestWallets(r){if(r.error)return $("guestWallets").textContent=r.error.message;if(!r.data.length)return empty("guestWallets","কোনো Pending request নেই");$("guestWallets").innerHTML=r.data.map(x=>'<div class="item"><b>৳'+esc(x.amount_bdt)+' '+esc(x.payment_method)+'</b><br>Request: '+esc(x.request_code)+'<br>TrxID: '+esc(x.transaction_id)+'<br>মোবাইল: '+esc(x.customer_phone||"দেওয়া হয়নি")+'<br><button onclick="guestWalletAction(\''+esc(x.id)+'\',\'approved\')" >টাকা পেয়েছি (Guest)</button><button class="danger" onclick="guestWalletAction(\''+esc(x.id)+'\',\'rejected\')">Reject</button></div>').join("")}
 function renderOrders(r){if(r.error)return $("orders").textContent=r.error.message;if(!r.data.length)return empty("orders","কোনো Pending order নেই");$("orders").innerHTML=r.data.map(x=>'<div class="item"><b>'+esc(x.product_name)+' — '+esc(x.package_label)+'</b><br>UID: '+esc(x.player_uid)+'<br>TrxID: '+esc(x.transaction_id)+'<br>৳'+esc(x.amount_bdt)+' | '+esc(x.customer_phone)+'<br><span class="status">'+esc(x.status)+'</span><br>'+orderButtons("orderAction",x.id)+'</div>').join("")}
