@@ -108,10 +108,11 @@ async function loadProductCatalog(){
  const grouped={'Free Fire Diamond':[],'Weekly / Monthly':[],'Level Up Pass (BD Server)':[]};
  (data||[]).forEach(p=>{if(grouped[p.category])grouped[p.category].push([p.package_label,Number(p.price_bdt)])});
  // The database is the source of truth, including when a category has zero active products.
- diamondPackages=grouped['Free Fire Diamond'];
- membershipPackages=grouped['Weekly / Monthly'];
- levelupPackages=grouped['Level Up Pass (BD Server)'];
- renderPackages();
+ // Keep built-in packages visible for any category with no active database products.
+if(grouped['Free Fire Diamond'].length) diamondPackages=grouped['Free Fire Diamond'];
+if(grouped['Weekly / Monthly'].length) membershipPackages=grouped['Weekly / Monthly'];
+if(grouped['Level Up Pass (BD Server)'].length) levelupPackages=grouped['Level Up Pass (BD Server)'];
+renderPackages();
 }
 function startOrder(s,pkg,price){$('service').value=s;$('levelupRules').hidden=s!=='Level Up Pass (BD Server)';$('package').innerHTML='<option value="">প্যাকেজ নির্বাচন করুন</option>';const list=s==='Free Fire Diamond'?diamondPackages:s==='Level Up Pass (BD Server)'?levelupPackages:membershipPackages;list.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[0]+' — ৳ '+p[1];o.dataset.price=p[1];$('package').appendChild(o)});$('package').value=pkg||'';selectedPrice=Number(price)||0;$('packagePrice').textContent='৳ '+selectedPrice;showPage('orderpage')}
 $('package').addEventListener('change',()=>{const o=$('package').selectedOptions[0];selectedPrice=Number(o?.dataset.price||0);$('packagePrice').textContent='৳ '+selectedPrice})
